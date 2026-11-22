@@ -64,13 +64,26 @@ jobs:
           $installerPath = Join-Path $env:TEMP "tailscale.msi"
           
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-          Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
+          $proc = Start-Process msiexec.exe -ArgumentList "/i `"$installerPath`" /qn /norestart TS_NOLAUNCH=true" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+              Write-Error "Tailscale MSI installation failed with exit code $($proc.ExitCode)"
+              exit 1
+          }
           Remove-Item $installerPath -Force
 
       - name: Establish Tailscale Connection
         run: |
-          $tsExe = Join-Path $env:ProgramFiles "Tailscale\tailscale.exe"
-          & $tsExe up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
+          $tsExe = @(
+              "$env:ProgramFiles\Tailscale\tailscale.exe",
+              "${env:ProgramFiles(x86)}\Tailscale\tailscale.exe"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+          if (-not $tsExe) {
+              Write-Error "tailscale.exe not found in Program Files or Program Files (x86)."
+              exit 1
+          }
+
+          & $tsExe up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID --unattended
           
           # Wait for Tailscale to assign an IP
           $tsIP = $null
