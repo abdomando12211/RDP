@@ -60,16 +60,7 @@ jobs:
 
       - name: Install Tailscale
         run: |
-          $tsUrl = "https://tailscale.com"
-          $installerPath = Join-Path $env:TEMP "tailscale.msi"
-          
-          Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-          $proc = Start-Process msiexec.exe -ArgumentList "/i `"$installerPath`" /qn /norestart TS_NOLAUNCH=true" -Wait -PassThru
-          if ($proc.ExitCode -ne 0) {
-              Write-Error "Tailscale MSI installation failed with exit code $($proc.ExitCode)"
-              exit 1
-          }
-          Remove-Item $installerPath -Force
+          winget install --id Tailscale.Tailscale --exact --silent --accept-package-agreements --accept-source-agreements
 
       - name: Establish Tailscale Connection
         run: |
